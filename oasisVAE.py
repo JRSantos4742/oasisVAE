@@ -9,6 +9,48 @@ from PIL import Image
 import os
 import matplotlib.pyplot as plt
 
+class CustomDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.data_dir = data_dir
+        self.transform = transform
+        self.images = os.listdir(data_dir)
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.data_dir, self.images[idx])
+        image = Image.open(img_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        return image
+
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if not torch.cuda.is_available():
+    print("Warning CUDA not Found. Using CPU")
+
+# Hyper-parameters
+num_epochs = 20
+learning_rate = 5e-3
+
+#--------------
+#Data
+height = 128
+
+transform_train = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1317, 0.1317, 0.1317), (0.1864, 0.1864, 0.1864)),
+                                      transforms.CenterCrop(height)])
+transform_test = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1343, 0.1343, 0.1343), (0.1879, 0.1879, 0.1879)),
+                                     transforms.CenterCrop(height)])
+
+
+trainset = CustomDataset('keras_png_slices_train', transform=transform_train)
+train_loader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+total_step = len(train_loader)
+
+testset = CustomDataset('keras_png_slices_test', transform=transform_test)
+test_loader = torch.utils.data.DataLoader(testset, batch_size=50, shuffle=False)
+
 #--------------
 # Model
 hDimension1 = 256
