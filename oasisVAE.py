@@ -93,7 +93,7 @@ class Decoder(nn.Module):
         out = F.relu(self.conv2(out))
         out = torch.sigmoid(out)
         return out
-
+    
 class VariationalEncoder(nn.Module):
     def __init__(self, in_channels, latent_dimension):
         super(VariationalEncoder, self).__init__()
@@ -133,7 +133,7 @@ class VAE(nn.Module):
         out = self.encoder(x)
         out = self.decoder(out)
         return out
-
+    
 model = VAE(3, 64)
 model = model.to(device)
 
@@ -174,3 +174,39 @@ for epoch in range(num_epochs):
 end = time.time()
 elapsed = end - start
 print("Training took " + str(elapsed) + " secs or " + str(elapsed/60) + " mins in total")
+
+# Test the model
+print("> Testing")
+original = []
+reconstruction = []
+start = time.time() #time generation
+model.eval()
+with torch.no_grad():
+    for images in test_loader:
+        batch_size = images.size(0)
+        images = images.to(device)
+        outputs = model(images)
+
+        images = images.view(batch_size, -1)
+        images -= images.min(1, keepdim=True)[0]
+        images /= images.max(1, keepdim=True)[0]
+        images = images.view(batch_size, 3, height, height)
+
+        outputs = outputs.view(batch_size, -1)
+        outputs -= outputs.min(1, keepdim=True)[0]
+        outputs /= outputs.max(1, keepdim=True)[0]
+        outputs = outputs.view(batch_size, 3, height, height)
+
+        original.append(images.cpu().numpy())
+        reconstruction.append(outputs.cpu().numpy())
+end = time.time()
+elapsed = end - start
+print("Testing took " + str(elapsed) + " secs or " + str(elapsed/60) + " mins in total")
+plt.imsave('vae_org1.png', original[0][0].reshape((height,height,3)))
+plt.imsave('vae_recon1.png', reconstruction[0][0].reshape((height,height,3)))
+plt.imsave('vae_org2.png', original[0][1].reshape((height,height,3)))
+plt.imsave('vae_recon2.png', reconstruction[0][1].reshape((height,height,3)))
+plt.imsave('vae_org3.png', original[0][2].reshape((height,height,3)))
+plt.imsave('vae_recon3.png', reconstruction[0][2].reshape((height,height,3)))
+
+print('END')
