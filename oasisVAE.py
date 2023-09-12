@@ -94,11 +94,39 @@ class Decoder(nn.Module):
         out = torch.sigmoid(out)
         return out
 
+class VariationalEncoder(nn.Module):
+    def __init__(self, in_channels, latent_dimension):
+        super(VariationalEncoder, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, hDimension1, kernel_size=3, 
+                               stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(hDimension1)
+        self.conv2 = nn.Conv2d(hDimension1, hDimension2, kernel_size=3, 
+                               stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(hDimension2)
+        self.linear1 = nn.Linear(hDimension2*height*height, latent_dimension)
+        self.linear2 = nn.Linear(hDimension2*height*height, latent_dimension)
+
+        self.N = torch.distributions.Normal(0, 1)
+        self.N.loc = self.N.loc.cuda() # hack to get sampling on the GPU
+        self.N.scale = self.N.scale.cuda()
+        self.kl = 0
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = F.relu(self.bn2(self.conv2(out)))
+        out = out.view(-1, hDimension2*height*height)
+        mu =  self.linear1(out)
+        sigma = torch.exp(self.linear2(out))
+        z = mu + sigma*self.N.sample(mu.shape)
+        self.kl = (sigma**2 + mu**2 - torch.log(sigma) - 1/2).sum()
+        return z
+
 class VAE(nn.Module):
     def __init__(self, in_channels, latent_dimension):
         super().__init__()
          
-        self.encoder = Encoder(in_channels, latent_dimension)
+        #self.encoder = Encoder(in_channels, latent_dimension)
+        self.encoder = VariationalEncoder(in_channels, latent_dimension)
         self.decoder = Decoder(in_channels, latent_dimension)
         
     def forward(self, x):
