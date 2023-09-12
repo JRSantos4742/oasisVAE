@@ -133,3 +133,44 @@ class VAE(nn.Module):
         out = self.encoder(x)
         out = self.decoder(out)
         return out
+
+model = VAE(3, 64)
+model = model.to(device)
+
+#model info
+print("Model No. of Parameters:", sum([param.nelement() for param in model.parameters()]))
+print(model)
+
+criterion = nn.MSELoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=5e-4)
+
+#Piecewise Linear Schedule
+total_step = len(train_loader)
+scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=learning_rate, total_steps=total_step*num_epochs)
+
+#--------------
+# Train the model
+model.train()
+print("> Training")
+start = time.time() #time generation
+for epoch in range(num_epochs):
+    for i, (images) in enumerate(train_loader): #load a batch
+        images = images.to(device)
+
+        # Forward pass
+        outputs = model(images)
+        loss = criterion(outputs, images)
+
+        # Backward and optimize
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if (i+1) % 40 == 0:
+            print ("Epoch [{}/{}], Step [{}/{}] Loss: {:.5f}"
+                    .format(epoch+1, num_epochs, i+1, total_step, loss.item()))
+            
+        scheduler.step()
+end = time.time()
+elapsed = end - start
+print("Training took " + str(elapsed) + " secs or " + str(elapsed/60) + " mins in total")
